@@ -2,7 +2,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PPCTEntry, EquipmentConfigEntry, TimetableEntry } from "../types";
 
 // Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMMINI_API_KEY || '' });
 
 export const parsePPCTFromText = async (text: string): Promise<PPCTEntry[]> => {
   if (!process.env.API_KEY) {
