@@ -1,5 +1,5 @@
 {
-  "name": "AI TẠO KẾ HOẠCH TUẦN TỰ ĐỘNG CHO GIÁO VIÊN",
+  "name": "Trợ lý Tạo TKB, KH Tuần tự động cho giáo viên",
   "description": "Ứng dụng hỗ trợ giáo viên lên lịch báo giảng tự động. Nhập Phân Phối Chương Trình (PPCT) từ Excel hoặc AI, tự động điền tên bài theo số tiết và xuất báo cáo Excel chuyên nghiệp.",
   "requestFramePermissions": []
 }

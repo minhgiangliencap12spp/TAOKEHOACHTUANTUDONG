@@ -1,5 +1,6 @@
+
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { TimetableEntry, DAYS_OF_WEEK } from '../types';
+import { TimetableEntry, DAYS_OF_WEEK, SchoolTimetableEntry } from '../types';
 import { parseTimetableFromImage, parseTimetableFromText, parseTimetableFromPdf } from '../services/geminiService';
 import { readExcelToText } from '../services/excelService';
 import { 
@@ -18,7 +19,10 @@ import {
   RefreshCw,
   X,
   Printer,
-  FileText
+  FileText,
+  School,
+  Sparkles,
+  ArrowRightCircle
 } from 'lucide-react';
 
 interface Props {
@@ -30,6 +34,8 @@ interface Props {
   // Global props
   teacherName: string;
   onUpdateTeacherName: (name: string) => void;
+  // School TKB result from the other tab
+  schoolTkbData: SchoolTimetableEntry[];
 }
 
 const PERIODS_MORNING = [1, 2, 3, 4];
@@ -42,11 +48,13 @@ const TimetableManager: React.FC<Props> = ({
   onUpdateData, 
   onUpdateFileName,
   teacherName,
-  onUpdateTeacherName
+  onUpdateTeacherName,
+  schoolTkbData
 }) => {
   const [teachers, setTeachers] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [pasteMode, setPasteMode] = useState(false);
+  const [showSyncBanner, setShowSyncBanner] = useState(false);
   
   // Auto-show grid if we have a selected teacher and data on load
   const [showGrid, setShowGrid] = useState<boolean>(() => {
@@ -70,19 +78,29 @@ const TimetableManager: React.FC<Props> = ({
         if (teacherName && teacherSet.has(teacherName)) {
           setShowGrid(true);
         }
-      } else {
-        // If data changes and teacher not found, keep teacher name but hide grid? 
-        // Or reset? Better to keep if user is just updating the file.
-        // But if names don't match, maybe clear.
-        if (teacherName && !teacherSet.has(teacherName)) {
-           // teacherName remains, but grid might be empty
-        }
       }
     } else {
       setTeachers([]);
       setShowGrid(false);
     }
   }, [savedData]); 
+
+  // Detect if school TKB has new data that could be synced
+  useEffect(() => {
+    if (schoolTkbData && schoolTkbData.length > 0) {
+      // If personal TKB is empty OR the source is different, show banner
+      if (savedData.length === 0 || savedFileName === "TKB Toàn trường (Đã xếp)") {
+        // We only show banner if there's actually a reason to sync
+        // Checking if the school data matches current teacher
+        const schoolHasTeacher = teacherName ? schoolTkbData.some(item => item.teacherName === teacherName) : true;
+        if (schoolHasTeacher) {
+          setShowSyncBanner(true);
+        }
+      }
+    } else {
+      setShowSyncBanner(false);
+    }
+  }, [schoolTkbData, savedData.length, teacherName, savedFileName]);
 
   // Ensure grid visibility syncs with teacher selection
   useEffect(() => {
@@ -164,6 +182,27 @@ const TimetableManager: React.FC<Props> = ({
     }
   };
 
+  const handleUseSchoolTkb = () => {
+    if (!schoolTkbData || schoolTkbData.length === 0) {
+      alert("Chưa có kết quả từ TKB Toàn trường. Vui lòng xếp lịch ở tab TKB Toàn trường trước.");
+      return;
+    }
+
+    // Convert SchoolTimetableEntry[] to TimetableEntry[]
+    const entries: TimetableEntry[] = schoolTkbData.map(item => ({
+      dayOfWeek: item.day,
+      period: item.period,
+      subject: item.subject,
+      className: item.className,
+      teacherName: item.teacherName
+    }));
+
+    onUpdateData(entries);
+    onUpdateFileName("TKB Toàn trường (Đã xếp)");
+    setShowSyncBanner(false);
+    alert("Đã đồng bộ dữ liệu từ TKB Toàn trường thành công!");
+  };
+
   const processParsedData = (entries: TimetableEntry[]) => {
     if (entries.length === 0) {
       alert("Không tìm thấy dữ liệu lịch dạy nào.");
@@ -214,19 +253,40 @@ const TimetableManager: React.FC<Props> = ({
 
   return (
     <div className="bg-white rounded-xl shadow-lg border border-violet-100 p-6 h-full flex flex-col">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 no-print">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4 no-print">
         <div>
           <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
             <CalendarCheck className="w-6 h-6 text-violet-600" />
             <span className="bg-gradient-to-r from-violet-600 to-fuchsia-600 bg-clip-text text-transparent">
-              Quản Lý Thời Khóa Biểu
+              Quản Lý Thời Khóa Biểu Cá Nhân
             </span>
           </h2>
           <div className="flex items-center gap-1 text-xs text-green-600 mt-1 font-medium">
-             <Save className="w-3 h-3"/> Dữ liệu tự động lưu. Chọn tên để lọc và cập nhật danh sách môn dạy.
+             <Save className="w-3 h-3"/> Tự động lưu • Lấy TKB từ file hoặc từ TKB trường.
           </div>
         </div>
       </div>
+
+      {/* Dynamic Sync Banner */}
+      {showSyncBanner && (
+        <div className="mb-4 bg-gradient-to-r from-indigo-600 to-violet-600 rounded-xl p-4 shadow-lg shadow-indigo-100 flex items-center justify-between text-white animate-in slide-in-from-top-4 duration-500 no-print">
+          <div className="flex items-center gap-3">
+             <div className="bg-white/20 p-2 rounded-lg">
+                <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+             </div>
+             <div>
+                <p className="font-bold text-sm">Phát hiện dữ liệu TKB mới từ Toàn trường!</p>
+                <p className="text-[11px] opacity-80">Hệ thống đã sẵn sàng để đồng bộ lịch dạy vừa xếp xong cho bạn.</p>
+             </div>
+          </div>
+          <button 
+            onClick={handleUseSchoolTkb}
+            className="flex items-center gap-2 px-4 py-2 bg-white text-indigo-700 rounded-lg text-xs font-black hover:bg-indigo-50 transition-all shadow-md active:scale-95"
+          >
+            CẬP NHẬT NGAY <ArrowRightCircle className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Control Panel */}
       <div className="bg-violet-50/50 p-4 rounded-xl border border-violet-200 mb-6 no-print">
@@ -242,58 +302,71 @@ const TimetableManager: React.FC<Props> = ({
            />
 
           {/* 1. Upload Section */}
-          {savedData.length === 0 ? (
-            <div className="flex gap-3">
-              <div 
-                className="relative overflow-hidden"
-                onPaste={handlePaste} 
-                tabIndex={0}
-              >
+          <div className="flex gap-2 flex-wrap">
+            {savedData.length === 0 ? (
+              <>
+                <div 
+                  className="relative overflow-hidden"
+                  onPaste={handlePaste} 
+                  tabIndex={0}
+                >
+                   <button 
+                     onClick={() => setPasteMode(true)}
+                     className="flex items-center gap-2 px-4 py-2 bg-white border border-violet-300 hover:border-violet-500 text-violet-700 rounded-lg font-bold transition-all shadow-sm"
+                   >
+                     <ImageIcon className="w-4 h-4" />
+                     {pasteMode ? "Ctrl+V ngay" : "Dán ảnh"}
+                   </button>
+                </div>
+
                  <button 
-                   onClick={() => setPasteMode(true)}
-                   className="flex items-center gap-2 px-4 py-2 bg-white border border-violet-300 hover:border-violet-500 text-violet-700 rounded-lg font-bold transition-all shadow-sm"
+                   onClick={() => fileInputRef.current?.click()}
+                   className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold transition-all shadow-sm"
                  >
-                   <ImageIcon className="w-4 h-4" />
-                   {pasteMode ? "Ctrl+V ngay" : "Dán ảnh"}
+                   <Upload className="w-4 h-4" />
+                   Tải Excel / PDF
                  </button>
-              </div>
 
-               <button 
-                 onClick={() => fileInputRef.current?.click()}
-                 className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg font-bold transition-all shadow-sm"
-               >
-                 <Upload className="w-4 h-4" />
-                 Tải Excel / PDF
-               </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-violet-100 shadow-sm">
-                <FileText className="w-5 h-5 text-violet-600" />
-                <span className="text-sm font-medium text-slate-700 truncate max-w-[200px]" title={savedFileName}>
-                  {savedFileName || 'Dữ liệu đã nạp'}
-                </span>
-              </div>
-              
-              <button 
-                onClick={handleReplace}
-                className="flex items-center gap-2 px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg font-bold transition-colors border border-emerald-200 text-sm"
-                title="Tải file khác để thay thế dữ liệu hiện tại"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Thay thế
-              </button>
+                 {schoolTkbData && schoolTkbData.length > 0 && (
+                   <button 
+                    onClick={handleUseSchoolTkb}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold transition-all shadow-lg shadow-indigo-100"
+                    title="Lấy dữ liệu đã xếp từ tab TKB Toàn trường"
+                  >
+                    <School className="w-4 h-4" />
+                    Lấy từ TKB Trường
+                  </button>
+                 )}
+              </>
+            ) : (
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg border border-violet-100 shadow-sm">
+                  <FileText className="w-5 h-5 text-violet-600" />
+                  <span className="text-sm font-medium text-slate-700 truncate max-w-[200px]" title={savedFileName}>
+                    {savedFileName || 'Dữ liệu đã nạp'}
+                  </span>
+                </div>
+                
+                <button 
+                  onClick={handleReplace}
+                  className="flex items-center gap-2 px-3 py-2 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 rounded-lg font-bold transition-colors border border-emerald-200 text-sm"
+                  title="Tải file khác để thay thế dữ liệu hiện tại"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Thay thế
+                </button>
 
-              <button 
-                onClick={handleClear}
-                className="flex items-center gap-2 px-3 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-colors border border-rose-200 text-sm"
-                title="Xóa toàn bộ dữ liệu TKB"
-              >
-                <Trash2 className="w-4 h-4" />
-                Xóa
-              </button>
-            </div>
-          )}
+                <button 
+                  onClick={handleClear}
+                  className="flex items-center gap-2 px-3 py-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg font-bold transition-colors border border-rose-200 text-sm"
+                  title="Xóa toàn bộ dữ liệu TKB"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Xóa
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* 2. Select Teacher */}
           {savedData.length > 0 && (
@@ -351,14 +424,14 @@ const TimetableManager: React.FC<Props> = ({
               {savedData.length > 0 ? (
                 <>
                   <Filter className="w-16 h-16 mb-4 opacity-30 text-violet-400"/>
-                  <p className="text-lg font-medium text-slate-600">Đã nạp dữ liệu TKB toàn trường.</p>
-                  <p className="text-sm mt-2">Vui lòng chọn tên giáo viên để xem TKB mẫu.</p>
+                  <p className="text-lg font-medium text-slate-600">Đã có dữ liệu thời khóa biểu.</p>
+                  <p className="text-sm mt-2">Vui lòng chọn tên giáo viên để xem TKB cá nhân.</p>
                 </>
               ) : (
                 <>
                   <CalendarCheck className="w-16 h-16 mb-4 opacity-30 text-violet-400"/>
                   <p className="text-lg font-medium text-slate-500">Chưa có dữ liệu.</p>
-                  <p className="text-sm mt-2">Tải file Excel / PDF hoặc dán ảnh TKB để bắt đầu.</p>
+                  <p className="text-sm mt-2">Tải file hoặc nhấn <b>"Lấy từ TKB Trường"</b> nếu đã xếp lịch ở tab bên cạnh.</p>
                 </>
               )}
            </div>

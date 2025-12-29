@@ -25,15 +25,15 @@ export interface TimetableEntry {
 export interface ScheduleRow {
   id: string;
   week: number;
-  dayOfWeek: string; // Thứ 2, Thứ 3...
-  date: string; // YYYY-MM-DD
-  period: number; // Tiết thứ mấy trong ngày (1-4)
-  subject: string; // Môn
+  dayOfWeek: string; 
+  date: string; 
+  period: number; 
+  subject: string; 
   className: string;
-  ppctNumber: string; // Số tiết theo PPCT
-  lessonName: string; // Auto-filled
+  ppctNumber: string; 
+  lessonName: string; 
   notes: string;
-  teacherName?: string; // NEW: Track which teacher this row belongs to
+  teacherName?: string;
 }
 
 export interface EquipmentRow {
@@ -45,9 +45,25 @@ export interface EquipmentRow {
   subject: string;
   className: string;
   ppctNumber: string;
-  equipmentName: string; // Thay cho lessonName
-  quantity: string;      // Thay cho notes
-  teacherName?: string; // NEW: Track which teacher this row belongs to
+  equipmentName: string; 
+  quantity: string;      
+  teacherName?: string; 
+}
+
+export interface TeacherAssignment {
+  id: string;
+  teacherName: string;
+  subject: string;
+  quotaPerClass: number;
+  assignedClasses: string[];
+}
+
+export interface SchoolTimetableEntry {
+  day: string;
+  period: number;
+  className: string;
+  subject: string;
+  teacherName: string;
 }
 
 export enum AppTab {
@@ -55,12 +71,47 @@ export enum AppTab {
   PPCT = 'PPCT',
   DEVICE_LIST = 'DEVICE_LIST',
   SCHEDULE = 'SCHEDULE',
-  EQUIPMENT = 'EQUIPMENT'
+  EQUIPMENT = 'EQUIPMENT',
+  SCHOOL_TIMETABLE = 'SCHOOL_TIMETABLE',
+  SETTINGS = 'SETTINGS'
 }
 
 export const DAYS_OF_WEEK = [
   'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'
 ];
+
+export interface ProcessingState {
+  status: 'idle' | 'uploading' | 'analyzing' | 'generating' | 'complete' | 'error';
+  message?: string;
+}
+
+export enum ElementType {
+  HEADING_1 = 'HEADING_1',
+  HEADING_2 = 'HEADING_2',
+  PARAGRAPH = 'PARAGRAPH',
+  BULLET_LIST = 'BULLET_LIST',
+}
+
+export interface ExtractedElement {
+  type: ElementType;
+  content?: string;
+  items?: string[];
+}
+
+export interface ExtractedDocument {
+  title: string;
+  elements: ExtractedElement[];
+}
+
+export interface MathReviewTopic {
+  id: string;
+  grade: number;
+  chapter: string;
+  lessonName: string;
+  theory: string;
+  exercises: string;
+  lastUpdated: string;
+}
 
 export interface ExamConfiguration {
   subject: string;
@@ -84,35 +135,30 @@ export interface GeneratedExamData {
   answerKey: string;
 }
 
-export interface MathReviewTopic {
+export enum AttendanceType {
+  CHECK_IN = 'CHECK_IN',
+  CHECK_OUT = 'CHECK_OUT'
+}
+
+export interface Location {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+}
+
+export interface AttendanceRecord {
   id: string;
-  grade: number;
-  chapter?: string;
-  lessonName: string;
-  theory?: string;
-  exercises?: string;
-  lastUpdated: string;
+  timestamp: number;
+  type: AttendanceType;
+  location?: Location;
+  note?: string;
 }
 
-export enum ElementType {
-  HEADING_1 = 'HEADING_1',
-  HEADING_2 = 'HEADING_2',
-  PARAGRAPH = 'PARAGRAPH',
-  BULLET_LIST = 'BULLET_LIST'
-}
-
-export interface DocElement {
-  type: ElementType;
-  content?: string;
-  items?: string[];
-}
-
-export interface ExtractedDocument {
-  title: string;
-  elements: DocElement[];
-}
-
-export interface ProcessingState {
-  status: 'idle' | 'uploading' | 'analyzing' | 'generating' | 'complete' | 'error';
-  message?: string;
+export interface Employee {
+  id: string;
+  name: string;
+  role: string;
+  department: string;
+  status: string;
+  avatar: string;
 }

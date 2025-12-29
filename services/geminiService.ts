@@ -1,14 +1,13 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { PPCTEntry, EquipmentConfigEntry, TimetableEntry } from "../types";
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: process.env.GEMMINI_API_KEY || '' });
+
+import { GoogleGenAI, Type } from "@google/genai";
+import { PPCTEntry, EquipmentConfigEntry, TimetableEntry, AttendanceRecord } from "../types";
+
+// Initialize Gemini Client - Using direct process.env.API_KEY as per guidelines
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const parsePPCTFromText = async (text: string): Promise<PPCTEntry[]> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key chưa được cấu hình.");
-  }
-
+  // Removed unnecessary process.env.API_KEY check as per guidelines
   const prompt = `
     Bạn là một trợ lý ảo hỗ trợ giáo viên. Nhiệm vụ của bạn là trích xuất thông tin "Phân Phối Chương Trình" (PPCT) từ văn bản thô bên dưới.
     
@@ -22,8 +21,9 @@ export const parsePPCTFromText = async (text: string): Promise<PPCTEntry[]> => {
   `;
 
   try {
+    // Using gemini-3-flash-preview for basic text processing and extraction
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -43,6 +43,7 @@ export const parsePPCTFromText = async (text: string): Promise<PPCTEntry[]> => {
       }
     });
 
+    // Directly access the .text property
     if (response.text) {
       return JSON.parse(response.text) as PPCTEntry[];
     }
@@ -54,10 +55,6 @@ export const parsePPCTFromText = async (text: string): Promise<PPCTEntry[]> => {
 };
 
 export const parseEquipmentConfigFromText = async (text: string): Promise<EquipmentConfigEntry[]> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key chưa được cấu hình.");
-  }
-
   const prompt = `
     Bạn là một trợ lý ảo hỗ trợ giáo viên. Nhiệm vụ của bạn là trích xuất thông tin "Danh Mục Thiết Bị Dạy Học" từ văn bản thô.
     
@@ -73,8 +70,9 @@ export const parseEquipmentConfigFromText = async (text: string): Promise<Equipm
   `;
 
   try {
+    // Using gemini-3-flash-preview for extraction
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -105,10 +103,6 @@ export const parseEquipmentConfigFromText = async (text: string): Promise<Equipm
 };
 
 export const parseTimetableFromText = async (text: string): Promise<TimetableEntry[]> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key chưa được cấu hình.");
-  }
-
   const prompt = `
     Bạn là một trợ lý nhập liệu thông minh. Nhiệm vụ: Trích xuất Thời Khóa Biểu từ văn bản thô (CSV/Excel text).
 
@@ -139,8 +133,9 @@ export const parseTimetableFromText = async (text: string): Promise<TimetableEnt
   `;
 
   try {
+    // Using gemini-3-flash-preview for text extraction
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -172,10 +167,6 @@ export const parseTimetableFromText = async (text: string): Promise<TimetableEnt
 };
 
 export const parseTimetableFromImage = async (base64Image: string): Promise<TimetableEntry[]> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key chưa được cấu hình.");
-  }
-
   // Extract base64 data and mime type
   const [header, data] = base64Image.split(',');
   const mimeType = header.match(/:(.*?);/)?.[1] || "image/png";
@@ -196,8 +187,9 @@ export const parseTimetableFromImage = async (base64Image: string): Promise<Time
   `;
 
   try {
+    // Using gemini-3-flash-preview for multi-modal extraction
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           {
@@ -239,10 +231,6 @@ export const parseTimetableFromImage = async (base64Image: string): Promise<Time
 };
 
 export const parseTimetableFromPdf = async (base64Pdf: string): Promise<TimetableEntry[]> => {
-  if (!process.env.API_KEY) {
-    throw new Error("API Key chưa được cấu hình.");
-  }
-
   // Remove data URI prefix if present
   const base64Data = base64Pdf.includes(',') ? base64Pdf.split(',')[1] : base64Pdf;
 
@@ -266,8 +254,9 @@ export const parseTimetableFromPdf = async (base64Pdf: string): Promise<Timetabl
   `;
 
   try {
+    // Using gemini-3-flash-preview for PDF content analysis
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: {
         parts: [
           {
@@ -305,5 +294,32 @@ export const parseTimetableFromPdf = async (base64Pdf: string): Promise<Timetabl
   } catch (error) {
     console.error("Gemini Parse Timetable PDF Error:", error);
     throw new Error("Không thể phân tích dữ liệu TKB từ file PDF.");
+  }
+};
+
+// Added analyzeAttendance to handle employee attendance analysis
+export const analyzeAttendance = async (records: AttendanceRecord[]): Promise<string> => {
+  const prompt = `
+    Bạn là một chuyên gia nhân sự và phân tích dữ liệu lao động. Hãy phân tích lịch sử chấm công của nhân viên dưới đây và đưa ra:
+    1. Nhận xét về tính đúng giờ và thói quen làm việc dựa trên các mốc thời gian.
+    2. Dự báo xu hướng làm việc (ví dụ: thời gian tan làm trung bình hoặc ngày làm việc hiệu quả nhất).
+    3. Lời khuyên thân thiện để cải thiện năng suất hoặc đạt được sự cân bằng công việc - cuộc sống tốt hơn.
+    
+    Dữ liệu chấm công (JSON):
+    ${JSON.stringify(records)}
+    
+    Hãy viết câu trả lời bằng tiếng Việt, súc tích, chuyên nghiệp và có tính khích lệ.
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+    });
+
+    return response.text || "Hiện tại không có đủ dữ liệu để tạo phân tích chuyên sâu.";
+  } catch (error) {
+    console.error("Gemini Analyze Attendance Error:", error);
+    return "Đã xảy ra lỗi khi cố gắng phân tích dữ liệu bằng AI. Vui lòng thử lại sau.";
   }
 };
