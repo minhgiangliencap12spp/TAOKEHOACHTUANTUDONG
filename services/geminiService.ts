@@ -4,7 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { PPCTEntry, EquipmentConfigEntry, TimetableEntry, AttendanceRecord } from "../types";
 
 // Initialize Gemini Client - Using direct process.env.API_KEY as per guidelines
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export const parsePPCTFromText = async (text: string): Promise<PPCTEntry[]> => {
   // Removed unnecessary process.env.API_KEY check as per guidelines
